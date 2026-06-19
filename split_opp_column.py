@@ -65,50 +65,57 @@ NEW_HEADERS = [
 
 def split_text(text):
     """
-    Split text into (gap, update) by finding first action-verb sentence.
+    Split text into (gap, update) by finding the first sentence/clause that
+    begins with an action verb at a sentence boundary.
+
+    Sentence boundaries are: start of text, after '\n', or after '. '.
+    The verb must be the FIRST word of the sentence (after stripping whitespace).
+
     Returns (gap_text, update_text).
     """
     if not text:
         return ('', '')
 
-    # Tokenise: split on newline first, then on '. ' within segments
-    # We want to preserve original line breaks as much as possible.
-    # Strategy: split on '\n', then for each line further split on '. '
-    # Rebuild tokens with their trailing delimiter so we can reassemble.
+    # We'll scan the text character by character to find sentence boundaries
+    # and check if the sentence starting there begins with an action verb.
+    # Sentence boundaries:
+    #   - position 0 (start)
+    #   - right after a '\n'
+    #   - right after '. ' (period + space)
 
-    # Build a list of (token, separator) pairs
-    tokens = []  # list of strings
-    lines = text.split('\n')
-    for i, line in enumerate(lines):
-        # Split each line into sentence fragments on '. '
-        parts = line.split('. ')
-        for j, part in enumerate(parts):
-            if j < len(parts) - 1:
-                tokens.append(part + '. ')
-            else:
-                tokens.append(part)
-        # Add newline separator between lines (except after last line)
-        if i < len(lines) - 1:
-            tokens.append('\n')
+    # Build list of (start_char_index, sentence_text) by splitting carefully.
+    # Strategy: collect boundary positions, then extract candidate sentences.
 
-    # Find the first token that is not a separator and starts with action verb
-    split_idx = None
-    for idx, tok in enumerate(tokens):
-        if tok == '\n':
-            continue
-        if VERB_PATTERN.match(tok.lstrip()):
-            split_idx = idx
+    boundaries = [0]  # indices where a new sentence starts
+
+    i = 0
+    while i < len(text):
+        if text[i] == '\n':
+            if i + 1 < len(text):
+                boundaries.append(i + 1)
+        elif text[i] == '.' and i + 1 < len(text) and text[i + 1] == ' ':
+            if i + 2 < len(text):
+                boundaries.append(i + 2)
+        i += 1
+
+    # For each boundary, check if the sentence starting there begins with an action verb
+    split_pos = None
+    for b in boundaries:
+        if b == 0:
+            continue  # don't split at position 0 (nothing would go to gap)
+        remainder = text[b:]
+        stripped = remainder.lstrip()
+        if VERB_PATTERN.match(stripped):
+            # Make sure this is truly at a sentence start, not mid-sentence
+            # (boundary already guarantees this — b follows \n or '. ')
+            split_pos = b
             break
 
-    if split_idx is None:
-        # No action verb found - all goes to gap
+    if split_pos is None:
         return (text.strip(), '')
 
-    gap_parts = tokens[:split_idx]
-    update_parts = tokens[split_idx:]
-
-    gap = ''.join(gap_parts).strip()
-    update = ''.join(update_parts).strip()
+    gap = text[:split_pos].strip()
+    update = text[split_pos:].strip()
     return (gap, update)
 
 
