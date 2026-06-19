@@ -41,7 +41,10 @@ DST = '/home/user/general/OPP_Quality_Analysis_Updated.xlsx'
 
 ACTION_VERBS = [
     'Add', 'Update', 'Include', 'Ensure', 'Remove',
-    'Change', 'Modify', 'Replace', 'Consider', 'Revise'
+    'Change', 'Modify', 'Replace', 'Consider', 'Revise',
+    'Restructure', 'Align', 'Expand', 'Create', 'Insert',
+    'Introduce', 'Clarify', 'Define', 'Document', 'Extend',
+    'Merge', 'Move', 'Rename', 'Rewrite', 'Split',
 ]
 # Build a regex pattern that matches at the start of a sentence/token
 VERB_PATTERN = re.compile(
@@ -93,9 +96,15 @@ def split_text(text):
         if text[i] == '\n':
             if i + 1 < len(text):
                 boundaries.append(i + 1)
-        elif text[i] == '.' and i + 1 < len(text) and text[i + 1] == ' ':
-            if i + 2 < len(text):
-                boundaries.append(i + 2)
+        elif text[i] == '.':
+            # Handle '. ' and also '.' followed by quote/apostrophe then space
+            # e.g.  .' Add ...  or  ." Add ...
+            j = i + 1
+            # skip closing quote characters
+            while j < len(text) and text[j] in ('"', "'", '’', '”'):
+                j += 1
+            if j < len(text) and text[j] == ' ' and j + 1 < len(text):
+                boundaries.append(j + 1)
         i += 1
 
     # For each boundary, check if the sentence starting there begins with an action verb
